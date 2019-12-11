@@ -90,6 +90,15 @@ public:
 		return;
 	}
 
+	lptr(func* f)
+	{
+		val =(u64) f;
+		if( f )
+			val |= LTYPE_FUNC;
+		else
+			val |= LTYPE_OBJ;
+	}
+
 	lptr(lobj* p)
 	{
 		if( !p )
@@ -172,6 +181,8 @@ struct func
 {
 	func() : type(LTYPE_FUNC), flags(0), num_args(0), closure(nullptr),
 			ptr(nullptr) {}
+
+	func(void* p, u32 f, u32 numargs) : type(LTYPE_FUNC), ptr(p), flags(f), num_args(numargs), closure(nullptr) {}
 
 	u32 type;
 	u32 flags;

@@ -9,8 +9,7 @@ lptr evlis(lptr);
 lptr begin(lptr);
 lptr intern_c(const std::string&);
 lptr intern(lptr);
-
-
 lptr environ_lookup(environ*, lptr);
 
+void lisp_init();
 

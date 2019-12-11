@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <iostream>
 #include <unordered_map>
 #include <algorithm>
 #include "types.h"
@@ -98,17 +99,19 @@ lptr eval(const std::vector<lptr>& args)
 {
 	if( args.size() == 0 ) return lptr();
 	lptr i = args[0];
-	if( i.type() != LTYPE_CONS ) return i;
-
 	environ* env = environment;
 	if( args.size() > 1 ) env = args[1].env();
 
-	return apply({i, env});
-}
+	if( i.type() == LTYPE_SYM )
+	{
+		return environ_lookup(env, i);
+	}
+	if( i.type() != LTYPE_CONS ) 
+	{
+		return i;
+	}
 
-lptr evlis(lptr list)
-{
-	return lptr();
+	return apply({i, env});
 }
 
 lptr lreturn(lptr arg)
@@ -169,6 +172,63 @@ lptr environ_lookup(environ* env, lptr s)
 	}
 
 	return lptr();
+}
+
+lptr setf(const std::vector<lptr>& args)
+{
+	if( args.size() < 2 ) return lptr();
+	lptr sym = args[0];
+	if( sym.type() != LTYPE_SYM ) return lptr();
+
+	std::unordered_map<symbol*, lptr>::iterator iter;
+	environ* env = environment;
+	while( env )
+	{
+		iter = env->symbols.find(sym.sym());
+		if( iter != env->symbols.end() ) break;
+		env = env->parent;
+	}
+
+	lptr val;
+	if( env )
+	{
+		val = eval({args[1]});
+		iter->second = args[1];
+	} else {
+		//todo: error out somehow
+		return lptr();
+	}
+
+	return val;
+}
+
+lptr display(lptr s)
+{
+	if( s.type() != LTYPE_STR ) return lptr();
+	std::cout << s.string()->txt;
+	return s;
+}
+
+lptr newline()
+{
+	std::cout << '\n'; //std::endl; //todo: is newline supposed to flush?
+	return lptr();
+}
+
+
+void lisp_init()
+{
+	intern_c("T");
+
+	setf({intern_c("newline"), new func((void*)&newline, 0, 0)});
+	setf({intern_c("display"), new func((void*)&display, 0, 1)});
+	setf({intern_c("setf"), setf({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
+	setf({intern_c("eval"), new func((void*)&eval, 0, -1)});
+	setf({intern_c("apply"), new func((void*)&apply, 0, -1)});
+	setf({intern_c("begin"), new func((void*)&begin, LFUNC_SPECIAL, -1)});
+	setf({intern_c("return"), new func((void*)&lreturn, LFUNC_SPECIAL, 1)});
+
+	return;
 }
 
 

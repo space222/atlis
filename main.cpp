@@ -5,7 +5,7 @@
 
 int main()
 {
-	lptr a = intern_c("t");
+	lisp_init();
 
 	return 0;
 }
