@@ -24,6 +24,10 @@ const int LTYPE_STR = 7;
 const int LTYPE_FILE = 8;
 const int LTYPE_SOCK = 9;
 
+const int LGC_MARK = (1<<31);
+const int LGC_NO_FREE = (1<<30);
+const int LGC_TYPE_MASK = (LGC_MARK|LGC_NO_FREE);
+
 struct lobj
 {
 	u32 type;
@@ -108,35 +112,35 @@ public:
 		}
 
 		val =(u64) p;
-		if( (p->type&~(1<<31)) < LTYPE_OBJ )
-			val |= (p->type&~(1<<31));
+		if( (p->type&~LGC_TYPE_MASK) < LTYPE_OBJ )
+			val |= (p->type&~LGC_TYPE_MASK);
 		else
 			val |= 4;
 		return;
 	}
 
-	func* as_func() const { return (func*)(val&~8); }
-	cons* as_cons() const { return (cons*)(val&~8); }
-	symbol* sym() const { return (symbol*)(val&~8); }
-	environ* env() const { return (environ*)(val&~8); }
-	lstr* string() const { return (lstr*)(val&~8); }
+	func* as_func() const { return (func*)(val&~7); }
+	cons* as_cons() const { return (cons*)(val&~7); }
+	symbol* sym() const { return (symbol*)(val&~7); }
+	environ* env() const { return (environ*)(val&~7); }
+	lstr* string() const { return (lstr*)(val&~7); }
 	u64 as_int() const { return val>>3; }
 	float as_float() const { u64 v = val>>3; return *(float*)&v; }
 
-	int type()
+	int type() const
 	{
-		int t = val&8;
+		int t = val&7;
 		if( t == LTYPE_OBJ )
 		{
-			lobj* L =(lobj*) (val&~8);
-			if( L ) t = L->type & ~(1<<31);
+			lobj* L =(lobj*) (val&~7);
+			if( L ) t = L->type & ~LGC_TYPE_MASK;
 		}
 		return t;
 	}
 
-	bool nilp()
+	bool nilp() const
 	{
-		return (val&8)==4 && (val&~8)== 0;
+		return (val&7)==4 && (val&~7)==0;
 	}
 
 	u64 val;
