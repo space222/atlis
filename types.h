@@ -226,22 +226,29 @@ struct lstr
 struct lstream
 {
 	lstream() : type(LTYPE_STREAM) {}
+	lstream(std::istream* i) : type(LTYPE_STREAM), strm(i) {}
 	lstream(std::fstream* f) : type(LTYPE_STREAM), strm(f) {}
+	lstream(std::ostream* o) : type(LTYPE_STREAM), strm(o) {}
+
 	~lstream() 
 	{ 
 		if( std::holds_alternative<std::fstream*>(strm) )
 		{
 			delete std::get<std::fstream*>(strm);
-		} else if( std::holds_alternative<std::stringstream*>(strm) ) {
-			delete std::get<std::stringstream*>(strm);
+		} else if( std::holds_alternative<std::istream*>(strm) ) {
+			delete std::get<std::istream*>(strm);
+		} else if( std::holds_alternative<std::ostream*>(strm) ) {
+			delete std::get<std::ostream*>(strm);
 		} else if( std::holds_alternative<int>(strm) ) {
 			int a = std::get<int>(strm);
 		}
+
+		strm = 0;
 		return;
 	}
 
 	u32 type;
-	std::variant<std::fstream*, std::stringstream*, int, std::monostate> strm;
+	std::variant<std::fstream*, std::istream*, std::ostream*, std::stringstream*, int, std::monostate> strm;
 };
 
 

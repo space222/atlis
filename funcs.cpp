@@ -6,6 +6,10 @@
 #include "types.h"
 #include "funcs.h"
 
+lptr global_T;
+lptr lisp_out_stream;
+lptr lisp_in_stream;
+
 std::unordered_map<std::string, symbol*> symbols_by_name;
 fscope first_fscope;
 thread_local fscope* global_scope = &first_fscope;
@@ -213,22 +217,6 @@ lptr setf(const std::vector<lptr>& args)
 	return lptr();
 }
 
-lptr display(const std::vector<lptr>& args)
-{
-	//todo: 1 optional arg is stream to output
-	lptr s = args[0];
-	if( s.type() != LTYPE_STR ) return lptr();
-	std::cout << s.string()->txt;
-	return s;
-}
-
-lptr newline(const std::vector<lptr>& args)
-{
-	//todo: 1 optional arg is stream to output
-	std::cout << '\n'; //std::endl; //todo: is newline supposed to flush?
-	return lptr();
-}
-
 lptr car(lptr v)
 {
 	if( v.type() != LTYPE_CONS )
@@ -263,10 +251,13 @@ lptr lcons(const std::vector<lptr>& args)
 
 void lisp_init()
 {
-	intern_c("T");
+	global_T = intern_c("T");
+
+	lisp_in_stream = new lstream(&std::cin);
+	lisp_out_stream = new lstream(&std::cout);
 
 	setf({intern_c("newline"), new func((void*)&newline, 0, -1)});
-	setf({intern_c("display"), new func((void*)&display, 0, -1)});
+	setf({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
 	setf({intern_c("setf"), setf({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
 	setf({intern_c("eval"), new func((void*)&eval, 0, -1)});
 	setf({intern_c("apply"), new func((void*)&apply, 0, -1)});

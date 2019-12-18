@@ -4,6 +4,110 @@
 #include "types.h"
 #include "funcs.h"
 
+extern lptr lisp_out_stream;
+extern lptr lisp_in_stream;
+
+
+lptr write_char(const std::vector<lptr>& args)
+{
+	if( args.size() == 0 ) return lptr();
+
+	if( args[0].type() != LTYPE_INT )
+	{
+		return lptr();
+	}
+
+	lptr S;
+	if( args.size() > 1 && args[1].type() == LTYPE_STREAM )
+	{
+		S = args[1];
+	} else {
+		S = lisp_out_stream;
+	}
+
+	char c =(char) args[0].as_int();
+	std::get<std::ostream*>(lisp_out_stream.stream()->strm)->put(c);
+
+	return lptr();
+}
+
+void lstream_write_string(lptr stream, const std::string_view SV)
+{
+	lstream* SM = stream.stream();
+
+	if( std::holds_alternative<std::fstream*>(SM->strm) )
+	{
+		*std::get<std::fstream*>(SM->strm) << SV;
+	} else if( std::holds_alternative<std::ostream*>(SM->strm) ) {
+		*std::get<std::ostream*>(SM->strm) << SV;
+	} else if( std::holds_alternative<std::stringstream*>(SM->strm) ) {
+		*std::get<std::stringstream*>(SM->strm) << SV;
+	}
+
+	return;
+}
+
+lptr newline(const std::vector<lptr>& args)
+{
+	lptr ostr = lisp_out_stream;
+	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
+	{
+		ostr = args[0];
+	}
+
+	write_char({(u64)'\n', ostr});
+
+	return lptr();
+}
+
+lptr lwrite(const std::vector<lptr>& args)
+{
+
+
+	return lptr();
+}
+
+lptr ldisplay(const std::vector<lptr>& args)
+{
+	if( args.size() == 0 ) return lptr();
+
+	lptr ostr = lisp_out_stream;
+	if( args.size() > 1 && args[1].type() == LTYPE_STREAM )
+	{
+		ostr = args[1];
+	}
+
+	switch( args[0].type() )
+	{
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); break;
+	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); break;
+	case LTYPE_STR: lstream_write_string(ostr, args[0].string()->txt); break;
+	case LTYPE_CONS: lwrite(args); break;
+	}
+
+	return args[0];
+}
+
+lptr open_output_file(const std::vector<lptr>& args)
+{
+	if( args.size() == 0 ) return lptr();
+
+	if( args[0].type() != LTYPE_STR )
+	{
+		return lptr();
+	}
+
+	std::fstream* out1 = new std::fstream(args[0].string()->txt, std::ios_base::binary|std::ios_base::out);
+
+	if( !*out1 )
+	{
+		delete out1;
+		return lptr();
+	}
+
+	return new lstream(out1);
+}
+
 lptr open_input_file(const std::vector<lptr>& args)
 {
 	if( args.size() == 0 ) return lptr();

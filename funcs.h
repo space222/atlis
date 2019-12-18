@@ -14,3 +14,10 @@ lptr symbol_value(fscope*, lptr);
 
 void lisp_init();
 
+
+// IO
+lptr newline(const std::vector<lptr>& args);
+lptr ldisplay(const std::vector<lptr>& args);
+
+
+
