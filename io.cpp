@@ -25,8 +25,12 @@ lptr write_char(const std::vector<lptr>& args)
 		S = lisp_out_stream;
 	}
 
-	char c =(char) args[0].as_int();
-	std::get<std::ostream*>(lisp_out_stream.stream()->strm)->put(c);
+	if( S.stream()->flags & LSTREAM_OUT )
+	{
+		char c =(char) args[0].as_int();
+		std::get<std::ostream*>(lisp_out_stream.stream()->strm)->put(c);
+		return args[0];
+	}
 
 	return lptr();
 }
@@ -62,7 +66,47 @@ lptr newline(const std::vector<lptr>& args)
 
 lptr lwrite(const std::vector<lptr>& args)
 {
+	if( args.size() == 0 ) return lptr();
 
+	lptr ostr = lisp_out_stream;
+	if( args.size() > 1 && args[1].type() == LTYPE_STREAM )
+	{
+		ostr = args[1];
+	}
+
+	if( ! ( ostr.stream()->flags & LSTREAM_OUT ) )
+	{
+		return lptr();
+	}
+
+	switch( args[0].type() )
+	{
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); return ostr;
+	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); return ostr;
+	case LTYPE_STR: lstream_write_string(ostr, '"' + args[0].string()->txt + '"'); return ostr;
+	}
+
+	if( args[0].type() == LTYPE_CONS )
+	{
+		cons* cc = args[0].as_cons();
+		//todo: the special reader things like quote, splice, etc
+		write_char({(u64)'(', ostr});
+		do {
+			lwrite({cc->a, ostr});
+			if( cc->b.type() != LTYPE_CONS )
+				lstream_write_string(ostr, " . ");
+			else
+				lstream_write_string(ostr, ", ");
+		} while( !cc->b.nilp() && cc->b.type() == LTYPE_CONS && (cc = cc->b.as_cons(), true) );
+		lptr last = cc;
+		if( ! last.nilp() )
+		{
+			lwrite({cc->b, ostr});
+		}
+		write_char({(u64)')', ostr});
+
+		return ostr;
+	}
 
 	return lptr();
 }
@@ -77,11 +121,16 @@ lptr ldisplay(const std::vector<lptr>& args)
 		ostr = args[1];
 	}
 
+	if( ! ( ostr.stream()->flags & LSTREAM_OUT ) )
+	{
+		return lptr();
+	}
+
 	switch( args[0].type() )
 	{
-	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); break;
-	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); break;
-	case LTYPE_STR: lstream_write_string(ostr, args[0].string()->txt); break;
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string(ostr.as_int())); break;
+	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(ostr.as_float())); break;
+	case LTYPE_STR: lstream_write_string(ostr, ostr.string()->txt); break;
 	case LTYPE_CONS: lwrite(args); break;
 	}
 
@@ -105,7 +154,7 @@ lptr open_output_file(const std::vector<lptr>& args)
 		return lptr();
 	}
 
-	return new lstream(out1);
+	return new lstream(out1, LSTREAM_FILE|LSTREAM_IN);
 }
 
 lptr open_input_file(const std::vector<lptr>& args)

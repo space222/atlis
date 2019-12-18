@@ -19,13 +19,14 @@ typedef int8_t  s8;
 
 const int LTYPE_INT = 0;
 const int LTYPE_FLOAT = 1;
-const int LTYPE_SYM = 2;
-const int LTYPE_FUNC = 3;
-const int LTYPE_CONS = 4;
-const int LTYPE_OBJ = 5;
-const int LTYPE_ENV = 6;
+const int LTYPE_CHAR = 2;
+const int LTYPE_SYM = 3;
+const int LTYPE_FUNC = 4;
+const int LTYPE_CONS = 5;
+const int LTYPE_OBJ = 6;
 const int LTYPE_STR = 7;
-const int LTYPE_STREAM = 8;
+const int LTYPE_ENV = 8;
+const int LTYPE_STREAM = 9;
 
 const int LGC_MARK = (1<<31);
 const int LGC_NO_FREE = (1<<30);
@@ -49,6 +50,12 @@ class lptr
 {
 public:
 	lptr() : val(LTYPE_OBJ) {}
+
+	lptr(char c)
+	{
+		val = ((u64)(u8)c)<<3;
+		return;
+	}
 
 	lptr(u64 v)
 	{
@@ -136,6 +143,7 @@ public:
 	fscope* env() const { return (fscope*)(val&~7); }
 	lstr* string() const { return (lstr*)(val&~7); }
 	u64 as_int() const { return val>>3; }
+	char as_char() const { return (char)(val>>3); }
 	float as_float() const { u64 v = val>>3; return *(float*)&v; }
 
 	int type() const
@@ -223,12 +231,18 @@ struct lstr
 	std::string txt;
 };
 
+const int LSTREAM_STRING = 1;
+const int LSTREAM_FILE = 2;
+const int LSTREAM_IN = 32;
+const int LSTREAM_OUT = 16;
+
 struct lstream
 {
 	lstream() : type(LTYPE_STREAM) {}
-	lstream(std::istream* i) : type(LTYPE_STREAM), strm(i) {}
-	lstream(std::fstream* f) : type(LTYPE_STREAM), strm(f) {}
-	lstream(std::ostream* o) : type(LTYPE_STREAM), strm(o) {}
+	lstream(std::istream* i) : type(LTYPE_STREAM), flags(LSTREAM_IN), strm(i) {}
+	lstream(std::fstream* f, u32 fl = LSTREAM_FILE|LSTREAM_IN|LSTREAM_OUT) : type(LTYPE_STREAM), flags(fl), strm(f) {}
+	lstream(std::ostream* o) : type(LTYPE_STREAM), flags(LSTREAM_OUT), strm(o) {}
+	lstream(std::stringstream* s): type(LTYPE_STREAM),flags(LSTREAM_STRING), strm(s) {}
 
 	~lstream() 
 	{ 
@@ -248,6 +262,7 @@ struct lstream
 	}
 
 	u32 type;
+	u32 flags;
 	std::variant<std::fstream*, std::istream*, std::ostream*, std::stringstream*, int, std::monostate> strm;
 };
 
