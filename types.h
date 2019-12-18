@@ -1,7 +1,11 @@
 #pragma once
 #include <unordered_map>
 #include <vector>
-#include <cstdio>
+#include <istream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <variant>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -21,8 +25,7 @@ const int LTYPE_CONS = 4;
 const int LTYPE_OBJ = 5;
 const int LTYPE_ENV = 6;
 const int LTYPE_STR = 7;
-const int LTYPE_FILE = 8;
-const int LTYPE_SOCK = 9;
+const int LTYPE_STREAM = 8;
 
 const int LGC_MARK = (1<<31);
 const int LGC_NO_FREE = (1<<30);
@@ -37,10 +40,10 @@ struct lobj
 
 struct cons;
 struct symbol;
-struct environ;
+struct fscope;
 struct func;
 struct lstr;
-struct lfile;
+struct lstream;
 
 class lptr
 {
@@ -80,7 +83,7 @@ public:
 		return;
 	}
 
-	lptr(environ* e)
+	lptr(fscope* e)
 	{
 		val =(u64) e;
 		val |= LTYPE_OBJ;
@@ -88,6 +91,13 @@ public:
 	}
 
 	lptr(lstr* s)
+	{
+		val =(u64) s;
+		val |= LTYPE_OBJ;
+		return;
+	}
+
+	lptr(lstream* s)
 	{
 		val =(u64) s;
 		val |= LTYPE_OBJ;
@@ -119,10 +129,11 @@ public:
 		return;
 	}
 
+	lstream* stream() const { return (lstream*)(val&~7); }
 	func* as_func() const { return (func*)(val&~7); }
 	cons* as_cons() const { return (cons*)(val&~7); }
 	symbol* sym() const { return (symbol*)(val&~7); }
-	environ* env() const { return (environ*)(val&~7); }
+	fscope* env() const { return (fscope*)(val&~7); }
 	lstr* string() const { return (lstr*)(val&~7); }
 	u64 as_int() const { return val>>3; }
 	float as_float() const { u64 v = val>>3; return *(float*)&v; }
@@ -164,18 +175,24 @@ struct symbol
 	std::string name;
 };
 
-struct environ
+struct fscope
 {
-	environ(environ* par = nullptr) : type(LTYPE_ENV), parent(par), need_return(false) {}
+	fscope(fscope* par = nullptr) : type(LTYPE_ENV), parent(par), need_return(false) {}
 
 	u32 type;
-	environ* parent;
+	func* F;
+	u32 pc;
+	fscope* parent;
 	bool need_return;
-	lptr retval, position;
-	std::unordered_map<symbol*, lptr> symbols;
+	lptr retval;
+
+	std::vector<std::pair<symbol*, lptr>> symbols;
+	std::vector<int> scope; //nested scopes (LET, etc). number of symbols to pop
+	std::vector<lptr> position;
 };
 
 const int LFUNC_SPECIAL = 1;  // function is special form
+const int LFUNC_BYTECODE = 2; // func::ptr is bytecode not native
 
 using zero_arg_func = lptr(void);
 using one_arg_func = lptr(lptr);
@@ -191,7 +208,7 @@ struct func
 	u32 type;
 	u32 flags;
 	u32 num_args;
-	environ* closure;
+	fscope* closure;
 	void* ptr;
 	lptr body;
 	lptr pos;
@@ -206,13 +223,25 @@ struct lstr
 	std::string txt;
 };
 
-struct lfile
+struct lstream
 {
-	lfile() : type(LTYPE_FILE) {}
-	lfile(FILE* f) : type(LTYPE_FILE), handle(f) {}
+	lstream() : type(LTYPE_STREAM) {}
+	lstream(std::fstream* f) : type(LTYPE_STREAM), strm(f) {}
+	~lstream() 
+	{ 
+		if( std::holds_alternative<std::fstream*>(strm) )
+		{
+			delete std::get<std::fstream*>(strm);
+		} else if( std::holds_alternative<std::stringstream*>(strm) ) {
+			delete std::get<std::stringstream*>(strm);
+		} else if( std::holds_alternative<int>(strm) ) {
+			int a = std::get<int>(strm);
+		}
+		return;
+	}
 
 	u32 type;
-	FILE* handle;
+	std::variant<std::fstream*, std::stringstream*, int, std::monostate> strm;
 };
 
 

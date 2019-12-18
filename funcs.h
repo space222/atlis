@@ -10,7 +10,7 @@ lptr begin(lptr);
 lptr begin_new_env(lptr arg);
 lptr intern_c(const std::string&);
 lptr intern(lptr);
-lptr environ_lookup(environ*, lptr);
+lptr symbol_value(fscope*, lptr);
 
 void lisp_init();
 

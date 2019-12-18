@@ -7,8 +7,8 @@
 #include "funcs.h"
 
 std::unordered_map<std::string, symbol*> symbols_by_name;
-environ first_environ;
-thread_local environ* environment = &first_environ;
+fscope first_fscope;
+thread_local fscope* global_scope = &first_fscope;
 
 lptr apply(const std::vector<lptr>& args)
 {
@@ -20,7 +20,7 @@ lptr apply(const std::vector<lptr>& args)
 		return lptr();
 	}
 
-	lptr val = environ_lookup(environment, args[0]);
+	lptr val = symbol_value(global_scope, args[0]);
 	if( val.type() != LTYPE_FUNC )
 	{
 		//todo: error out
@@ -47,7 +47,7 @@ lptr apply(const std::vector<lptr>& args)
 	// if it isn't a special form, need to eval the args	
 	if( ! (F->flags & LFUNC_SPECIAL) )
 	{
-		for_each(std::begin(applargs), std::end(applargs), [&](lptr &a) { a = eval({a, environment}); });
+		for_each(std::begin(applargs), std::end(applargs), [&](lptr &a) { a = eval({a, global_scope}); });
 	}
 
 	//todo: check expected arg number, eventually types as well
@@ -63,16 +63,16 @@ lptr apply(const std::vector<lptr>& args)
 	}
 
 	// now we're really out in the grapes implementing a fully S-expression function with arguments
-	environ* envnew = new environ(environment);
-	environment = envnew;
+	fscope* envnew = new fscope(global_scope);
+	global_scope = envnew;
 
-	//todo: set up arguments in the environment
+	//todo: set up arguments in the global_scope
 
 	// run begin on the body
 	lptr retval = begin(F->body);
 
-	// restore previous environment
-	environment = environment->parent;
+	// restore previous global_scope
+	global_scope = global_scope->parent;
 	delete envnew; // for now, but might eventually implement call/cc
 
 	return retval;
@@ -82,12 +82,12 @@ lptr eval(const std::vector<lptr>& args)
 {
 	if( args.size() == 0 ) return lptr();
 	lptr i = args[0];
-	environ* env = environment;
+	fscope* env = global_scope;
 	if( args.size() > 1 ) env = args[1].env();
 
 	if( i.type() == LTYPE_SYM )
 	{
-		return environ_lookup(env, i);
+		return symbol_value(env, i);
 	}
 	if( i.type() != LTYPE_CONS ) 
 	{
@@ -101,28 +101,28 @@ lptr eval(const std::vector<lptr>& args)
 		i = i.as_cons()->b;
 	} while( i.type() == LTYPE_CONS );
 	
-	environ* temp = environment;
-	environment = env;
+	fscope* temp = global_scope;
+	global_scope = env;
 	lptr retval = apply(applargs);
-	environment = temp;
+	global_scope = temp;
 	return retval;
 }
 
 lptr lreturn(lptr arg)
 {
-	environment->need_return = true;
-	environment->retval = arg;
+	global_scope->need_return = true;
+	global_scope->retval = arg;
 	return arg;
 }
 
 lptr begin_new_env(lptr arg)
 {
-	environ* env = new environ(environment);
-	environment = env;
+	fscope* env = new fscope(global_scope);
+	global_scope = env;
 
 	lptr retval = begin(arg);
 
-	environment = environment->parent;
+	global_scope = global_scope->parent;
 	delete env;
 	return retval;
 }
@@ -137,11 +137,9 @@ lptr begin(lptr arg)
 		res = eval({temp->a});
 		if( temp->b.type() != LTYPE_CONS ) break;
 		arg = temp->b;
-	} while( !arg.nilp() && !environment->need_return );
+	} while( !arg.nilp() && !global_scope->need_return );
 
-	environment->position = arg;
-
-	return environment->need_return ? environment->retval : res;
+	return global_scope->need_return ? global_scope->retval : res;
 }
 
 lptr intern_c(const std::string& name)
@@ -165,16 +163,23 @@ lptr intern(lptr str)
 	return lptr();
 }
 
-lptr environ_lookup(environ* env, lptr s)
+lptr symbol_value(fscope* env, lptr s)
 {
 	if( s.type() != LTYPE_SYM )
 		return lptr();
 
-	while( env )
+	// function scope
+	auto iter = std::find_if(env->symbols.rbegin(), env->symbols.rend(), [&](const auto& p) { return p.first == s.sym(); });
+	if( iter != env->symbols.rend() )
 	{
-		auto iter = env->symbols.find(s.sym());
-		if( iter != env->symbols.end() ) return iter->second;
-		env = env->parent;
+		return iter->second;
+	}
+
+	// global scope
+	auto iter2 = std::find_if(first_fscope.symbols.rbegin(), first_fscope.symbols.rend(), [&](const auto& p) { return p.first == s.sym(); });
+	if( iter2 != first_fscope.symbols.rend() )
+	{
+		return iter2->second;
 	}
 
 	return lptr();
@@ -185,27 +190,27 @@ lptr setf(const std::vector<lptr>& args)
 	if( args.size() < 2 ) return lptr();
 	lptr sym = args[0];
 	if( sym.type() != LTYPE_SYM ) return lptr();
-
-	std::unordered_map<symbol*, lptr>::iterator iter;
-	environ* env = environment;
-	while( env )
+	
+	// function scope
+	auto iter = std::find_if(global_scope->symbols.rbegin(), global_scope->symbols.rend(), [&](const auto& p) { return p.first == sym.sym(); });
+	if( iter != global_scope->symbols.rend() )
 	{
-		iter = env->symbols.find(sym.sym());
-		if( iter != env->symbols.end() ) break;
-		env = env->parent;
+		lptr val = eval({args[1]});
+		iter->second = val;
+		return val;
 	}
 
-	lptr val;
-	if( env )
+	// global scope
+	auto iter2 = std::find_if(first_fscope.symbols.rbegin(), first_fscope.symbols.rend(), [&](const auto& p) { return p.first == sym.sym(); });
+	if( iter2 != first_fscope.symbols.rend() )
 	{
-		val = eval({args[1]});
-		iter->second = args[1];
-	} else {
-		//todo: error out somehow
-		return lptr();
+		lptr val = eval({args[1]});
+		iter2->second = val;
+		return val;
 	}
 
-	return val;
+	//todo: symbol not found, error out
+	return lptr();
 }
 
 lptr display(const std::vector<lptr>& args)
@@ -260,13 +265,13 @@ void lisp_init()
 {
 	intern_c("T");
 
-	setf({intern_c("newline"), new func((void*)&newline, 0, 0)});
-	setf({intern_c("display"), new func((void*)&display, 0, 1)});
+	setf({intern_c("newline"), new func((void*)&newline, 0, -1)});
+	setf({intern_c("display"), new func((void*)&display, 0, -1)});
 	setf({intern_c("setf"), setf({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
 	setf({intern_c("eval"), new func((void*)&eval, 0, -1)});
 	setf({intern_c("apply"), new func((void*)&apply, 0, -1)});
 	setf({intern_c("begin"), new func((void*)&begin_new_env, LFUNC_SPECIAL, -1)});
-	setf({intern_c("return"), new func((void*)&lreturn, LFUNC_SPECIAL, 1)});
+	setf({intern_c("return"), new func((void*)&lreturn, 0, 1)});
 	setf({intern_c("car"), new func((void*)&car, 0, 1)});
 	setf({intern_c("cdr"), new func((void*)&cdr, 0, 1)});
 	setf({intern_c("cons"), new func((void*)&lcons, 0, 2)});
