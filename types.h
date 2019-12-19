@@ -267,6 +267,62 @@ struct lstream
 };
 
 
+struct StaticArgs
+{
+	StaticArgs(const std::initializer_list<lptr>& L)
+	{
+		num = L.size();
+		for(int i = 0; i < num && i < 7; ++i)
+			args[i] = L.begin()[i];
+	}
+
+	int num;
+	lptr args[6];
+};
+
+class MultiArg
+{
+public:
+	MultiArg(const std::initializer_list<lptr>& L)
+	{
+		if( L.size() > 6 )
+		{
+			them.emplace<std::vector<lptr>>(L);
+		} else {
+			them.emplace<StaticArgs>(L);
+		}
+	}
+
+	MultiArg(const std::vector<lptr>& v) : them(v) {}
+
+	size_t size() const
+	{
+		if( them.index() == 1 )
+			return std::get_if<1>(&them)->size();
+		if( them.index() == 2 )
+			return std::get_if<2>(&them)->num;
+		throw "This should never happen 2";
+	}
+
+	lptr operator[](size_t E) const
+	{
+		if( them.index() == 1 )
+		{
+			const auto *V = std::get_if<1>(&them);
+			return (*V)[E];
+		} else if( them.index() == 2 ) {
+			const StaticArgs* SA = std::get_if<2>(&them);
+			if( E >= SA->num ) return lptr();
+			return SA->args[E];
+		} else {
+			throw "This should never happen.";
+		}
+		return lptr();
+	}
+
+
+	std::variant<std::monostate, std::vector<lptr>, StaticArgs> them;
+};
 
 
 

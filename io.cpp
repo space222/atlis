@@ -8,7 +8,7 @@ extern lptr lisp_out_stream;
 extern lptr lisp_in_stream;
 
 
-lptr write_char(const std::vector<lptr>& args)
+lptr write_char(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -51,7 +51,7 @@ void lstream_write_string(lptr stream, const std::string_view SV)
 	return;
 }
 
-lptr newline(const std::vector<lptr>& args)
+lptr newline(const MultiArg& args)
 {
 	lptr ostr = lisp_out_stream;
 	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
@@ -64,7 +64,7 @@ lptr newline(const std::vector<lptr>& args)
 	return lptr();
 }
 
-lptr lwrite(const std::vector<lptr>& args)
+lptr lwrite(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -111,7 +111,7 @@ lptr lwrite(const std::vector<lptr>& args)
 	return lptr();
 }
 
-lptr ldisplay(const std::vector<lptr>& args)
+lptr ldisplay(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -137,7 +137,7 @@ lptr ldisplay(const std::vector<lptr>& args)
 	return args[0];
 }
 
-lptr open_output_file(const std::vector<lptr>& args)
+lptr open_output_file(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -157,7 +157,7 @@ lptr open_output_file(const std::vector<lptr>& args)
 	return new lstream(out1, LSTREAM_FILE|LSTREAM_IN);
 }
 
-lptr open_input_file(const std::vector<lptr>& args)
+lptr open_input_file(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -198,6 +198,18 @@ lptr lclose(lptr port)
 	return lptr();
 }
 
+lptr lread(const MultiArg& args)
+{
+	lptr port = lisp_out_stream;
+	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
+		port = args[0];
+
+	if( ! (port.stream()->flags & LSTREAM_OUT) ) return lptr();
+
+	
+
+	return lptr();
+}
 
 
 

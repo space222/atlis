@@ -16,8 +16,8 @@ void lisp_init();
 
 
 // IO
-lptr newline(const std::vector<lptr>& args);
-lptr ldisplay(const std::vector<lptr>& args);
+lptr newline(const MultiArg& args);
+lptr ldisplay(const MultiArg& args);
 
 
 
