@@ -198,15 +198,80 @@ lptr lclose(lptr port)
 	return lptr();
 }
 
-lptr lread(const MultiArg& args)
+lptr peek_char(const MultiArg& args)
 {
-	lptr port = lisp_out_stream;
+	lptr port = lisp_in_stream;
 	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
 		port = args[0];
 
-	if( ! (port.stream()->flags & LSTREAM_OUT) ) return lptr();
+	if( ! (port.stream()->flags & LSTREAM_IN) ) return lptr();
 
+	lstream* S = port.stream();
+	if( std::holds_alternative<std::fstream*>(S->strm) )
+	{
+		return (u64)(u8) std::get<std::fstream*>(S->strm)->peek();
+	} else if( std::holds_alternative<std::istream*>(S->strm) ) {
+		return (u64)(u8) std::get<std::istream*>(S->strm)->peek();
+	}
 	
+	return (u64)(u8) std::get<std::stringstream*>(S->strm)->peek();
+}
+
+lptr read_char(const MultiArg& args)
+{
+	lptr port = lisp_in_stream;
+	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
+		port = args[0];
+
+	if( ! (port.stream()->flags & LSTREAM_IN) ) return lptr();
+
+	lstream* S = port.stream();
+	if( std::holds_alternative<std::fstream*>(S->strm) )
+	{
+		return (u64)(u8) std::get<std::fstream*>(S->strm)->get();
+	} else if( std::holds_alternative<std::istream*>(S->strm) ) {
+		return (u64)(u8) std::get<std::istream*>(S->strm)->get();
+	}
+	
+	return (u64)(u8) std::get<std::stringstream*>(S->strm)->get();
+}
+
+lptr lread(const MultiArg& args)
+{
+	lptr port = lisp_in_stream;
+	if( args.size() > 0 && args[0].type() == LTYPE_STREAM )
+		port = args[0];
+
+	if( ! (port.stream()->flags & LSTREAM_IN) ) return lptr();
+
+	u64 c = peek_char({port}).as_int();
+	if( c == '(' )
+	{
+		read_char({port});
+		//todo: read list
+		return lptr();
+	}
+	
+	if( c == '\'' )
+	{
+		read_char({port});
+		lptr b = lread({port});
+		return new cons(intern_c("quote"), b);
+	}
+
+	if( c == ',' )
+	{
+		read_char({port});
+		c = peek_char({port}).as_int();
+		if( c == '@' )
+		{
+			read_char({port});
+			lptr b = lread({port});
+			return new cons(intern_c("unquote-splice"), b);
+		}
+		lptr b = lread({port});
+		return new cons(intern_c("unquote"), b);
+	}
 
 	return lptr();
 }

@@ -18,6 +18,10 @@ void lisp_init();
 // IO
 lptr newline(const MultiArg& args);
 lptr ldisplay(const MultiArg& args);
+lptr peek_char(const MultiArg& args);
+lptr read_char(const MultiArg& args);
+lptr lread(const MultiArg& args);
+
 
 
 
