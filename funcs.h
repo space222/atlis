@@ -3,8 +3,8 @@
 #include <string>
 #include "types.h"
 
-lptr apply(const std::vector<lptr>& args);
-lptr eval(const std::vector<lptr>& args);
+lptr apply(const MultiArg& args);
+lptr eval(const MultiArg& args);
 lptr evlis(lptr);
 lptr begin(lptr);
 lptr begin_new_env(lptr arg);

@@ -14,7 +14,7 @@ std::unordered_map<std::string, symbol*> symbols_by_name;
 fscope first_fscope;
 thread_local fscope* global_scope = &first_fscope;
 
-lptr apply(const std::vector<lptr>& args)
+lptr apply(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 
@@ -45,8 +45,8 @@ lptr apply(const std::vector<lptr>& args)
 		return begin_new_env(F->body);
 	}
 
-	std::vector<lptr> applargs;
-	applargs.insert(std::begin(applargs), std::begin(args)+1, std::end(args));
+	std::vector<lptr> applargs(args.size()-1);
+	for(int i = 1; i < args.size(); ++i) applargs[i-1] = args[i];
 
 	// if it isn't a special form, need to eval the args	
 	if( ! (F->flags & LFUNC_SPECIAL) )
@@ -82,7 +82,7 @@ lptr apply(const std::vector<lptr>& args)
 	return retval;
 }
 
-lptr eval(const std::vector<lptr>& args)
+lptr eval(const MultiArg& args)
 {
 	if( args.size() == 0 ) return lptr();
 	lptr i = args[0];
