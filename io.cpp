@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include <vector>
 #include <istream>
+#include <stdio.h>
 #include "types.h"
 #include "funcs.h"
 
@@ -79,11 +80,19 @@ lptr lwrite(const MultiArg& args)
 		return lptr();
 	}
 
+	if( args[0].nilp() )
+	{
+		lstream_write_string(ostr, "Nil");
+		return ostr;
+	}
+
 	switch( args[0].type() )
 	{
 	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); return ostr;
 	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); return ostr;
 	case LTYPE_STR: lstream_write_string(ostr, '"' + args[0].string()->txt + '"'); return ostr;
+	case LTYPE_SYM: lstream_write_string(ostr, args[0].sym()->name); break;
+	default: break;
 	}
 
 	if( args[0].type() == LTYPE_CONS )
@@ -91,16 +100,16 @@ lptr lwrite(const MultiArg& args)
 		cons* cc = args[0].as_cons();
 		//todo: the special reader things like quote, splice, etc
 		write_char({(u64)'(', ostr});
-		do {
+		lwrite({cc->a, ostr});
+		while( cc->b.type() == LTYPE_CONS && (cc = cc->b.as_cons(), true) )
+		{
+			write_char({(u64)' ', ostr});
 			lwrite({cc->a, ostr});
-			if( cc->b.type() != LTYPE_CONS )
-				lstream_write_string(ostr, " . ");
-			else
-				lstream_write_string(ostr, ", ");
-		} while( !cc->b.nilp() && cc->b.type() == LTYPE_CONS && (cc = cc->b.as_cons(), true) );
-		lptr last = cc;
+		}
+		lptr last = cc->b;
 		if( ! last.nilp() )
 		{
+			lstream_write_string(ostr, " . ");
 			lwrite({cc->b, ostr});
 		}
 		write_char({(u64)')', ostr});
@@ -126,12 +135,19 @@ lptr ldisplay(const MultiArg& args)
 		return lptr();
 	}
 
+	if( args[0].nilp() )
+	{
+		lstream_write_string(ostr, "Nil");
+		return ostr;
+	}
+
 	switch( args[0].type() )
 	{
-	case LTYPE_INT: lstream_write_string(ostr, std::to_string(ostr.as_int())); break;
-	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(ostr.as_float())); break;
-	case LTYPE_STR: lstream_write_string(ostr, ostr.string()->txt); break;
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); break;
+	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); break;
+	case LTYPE_STR: lstream_write_string(ostr, args[0].string()->txt); break;
 	case LTYPE_CONS: lwrite(args); break;
+	case LTYPE_SYM: lstream_write_string(ostr, args[0].sym()->name); break;
 	}
 
 	return args[0];
@@ -236,6 +252,25 @@ lptr read_char(const MultiArg& args)
 	return (u64)(u8) std::get<std::stringstream*>(S->strm)->get();
 }
 
+void consume_ws(lptr port)
+{
+	int c =(int) peek_char({port}).as_int();
+	while( isspace(c) )
+	{
+		read_char({port});
+		c =(int) peek_char({port}).as_int();
+		while( c == ';' )
+		{
+			while( (c != '\n' && c != -1) || isspace(c) )
+			{
+				read_char({port});
+				c =(int) peek_char({port}).as_int();
+			}		
+		}
+	}
+	return;
+}
+
 lptr lread(const MultiArg& args)
 {
 	lptr port = lisp_in_stream;
@@ -244,12 +279,48 @@ lptr lread(const MultiArg& args)
 
 	if( ! (port.stream()->flags & LSTREAM_IN) ) return lptr();
 
-	u64 c = peek_char({port}).as_int();
+	int c =(int) peek_char({port}).as_int();
 	if( c == '(' )
 	{
+		//printf("about to list\n");
 		read_char({port});
-		//todo: read list
-		return lptr();
+		consume_ws(port);
+		c = (int) peek_char({port}).as_int();
+		if( c == ')' )
+		{  // empty list
+			read_char({port});
+			return lptr();
+		}
+
+		lptr a = lread({port});
+		cons* fin = new cons(a, lptr());
+		cons* temp = fin;
+		consume_ws(port);
+		c =(int) peek_char({port}).as_int();
+		while( c != ')' )
+		{
+			if( c == '.' )
+			{
+				read_char({port});
+				consume_ws(port);
+				temp->b = lread({port});
+				c =(int) read_char({port}).as_int();
+				if( c != ')' )
+				{
+					//todo: malformed list
+					while( c != ')' && c != -1 ) c =(int) read_char({port}).as_int();
+				}
+				return fin;
+			}
+			cons* n = new cons(lread({port}), lptr());
+			temp->b = n;
+			temp = n;
+			consume_ws(port);
+			c =(int) peek_char({port}).as_int();
+		}
+		//printf("end of list\n");
+		read_char({port});
+		return fin;
 	}
 	
 	if( c == '\'' )
@@ -273,7 +344,33 @@ lptr lread(const MultiArg& args)
 		return new cons(intern_c("unquote"), b);
 	}
 
-	return lptr();
+	std::string atom;
+	do {
+		atom += c;
+		read_char({port});
+		c =(int) peek_char({port}).as_int();
+	} while( !isspace(c) && c != '(' && c != ')' && c != ';' && c != ',' && c != '`' && c != '\'' );
+
+	size_t pos;
+	try {
+		u64 res = std::stoll(atom, &pos, 0);
+		if( pos == atom.size() )
+		{
+			return res;
+		}
+	} catch(...) {}
+
+	try {
+		float r2 = std::stof(atom, &pos);
+		if( pos == atom.size() )
+		{
+			return r2;
+		}
+	} catch(...) {}
+
+	lptr a = intern_c(atom);
+	//printf("got = %i\n", a.type());
+	return a;
 }
 
 

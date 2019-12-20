@@ -21,6 +21,7 @@ lptr ldisplay(const MultiArg& args);
 lptr peek_char(const MultiArg& args);
 lptr read_char(const MultiArg& args);
 lptr lread(const MultiArg& args);
+lptr lwrite(const MultiArg& args);
 
 
 

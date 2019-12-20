@@ -276,6 +276,16 @@ struct StaticArgs
 			args[i] = L.begin()[i];
 	}
 
+	auto begin()
+	{
+		return std::begin(args);
+	}
+
+	auto end()
+	{
+		return std::begin(args)+num;
+	}
+
 	int num;
 	lptr args[6];
 };
@@ -294,6 +304,8 @@ public:
 	}
 
 	MultiArg(const std::vector<lptr>& v) : them(v) {}
+
+	
 
 	size_t size() const
 	{
