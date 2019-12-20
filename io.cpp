@@ -92,6 +92,7 @@ lptr lwrite(const MultiArg& args)
 	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); return ostr;
 	case LTYPE_STR: lstream_write_string(ostr, '"' + args[0].string()->txt + '"'); return ostr;
 	case LTYPE_SYM: lstream_write_string(ostr, args[0].sym()->name); break;
+	case LTYPE_FUNC: lstream_write_string(ostr, "<#function @" + std::to_string((u64)args[0].as_func()) + ">"); break;
 	default: break;
 	}
 
@@ -148,6 +149,7 @@ lptr ldisplay(const MultiArg& args)
 	case LTYPE_STR: lstream_write_string(ostr, args[0].string()->txt); break;
 	case LTYPE_CONS: lwrite(args); break;
 	case LTYPE_SYM: lstream_write_string(ostr, args[0].sym()->name); break;
+	case LTYPE_FUNC: lwrite(args); break;
 	}
 
 	return args[0];

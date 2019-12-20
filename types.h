@@ -303,9 +303,9 @@ public:
 		}
 	}
 
-	MultiArg(const std::vector<lptr>& v) : them(v) {}
-
-	
+	MultiArg(const std::vector<lptr>& v) : them(v)
+	{
+	}
 
 	size_t size() const
 	{

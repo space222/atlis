@@ -5,12 +5,15 @@
 
 int main()
 {
+try {
 	lisp_init();
 	while(1)
 	{
-		lwrite({ lread({}) });
+		lwrite({ eval({ lread({}) }) });
 	}
-
+} catch(const char* e) {
+	std::cout << e << std::endl;
+}
 	return 0;
 }
 

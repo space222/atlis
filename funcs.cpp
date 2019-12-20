@@ -189,6 +189,29 @@ lptr symbol_value(fscope* env, lptr s)
 	return lptr();
 }
 
+lptr ldefine(const MultiArg& args)
+{
+	if( args.size() < 1 ) return lptr();
+
+	lptr sym = args[0];
+	lptr val;
+
+	if( args.size() > 1 )
+	{
+		val = eval({args[1]});
+	}
+
+	auto iter2 = std::find_if(first_fscope.symbols.begin(), first_fscope.symbols.end(), [&](const auto& p) { return p.first == sym.sym(); });
+	if( iter2 != first_fscope.symbols.end() )
+	{
+		iter2->second = val;
+	} else {
+		first_fscope.symbols.push_back(std::make_pair(sym.sym(), val));
+	}
+
+	return val;
+}
+
 lptr setf(const std::vector<lptr>& args)
 {
 	if( args.size() < 2 ) return lptr();
@@ -256,16 +279,17 @@ void lisp_init()
 	lisp_in_stream = new lstream(&std::cin);
 	lisp_out_stream = new lstream(&std::cout);
 
-	setf({intern_c("newline"), new func((void*)&newline, 0, -1)});
-	setf({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
-	setf({intern_c("setf"), setf({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
-	setf({intern_c("eval"), new func((void*)&eval, 0, -1)});
-	setf({intern_c("apply"), new func((void*)&apply, 0, -1)});
-	setf({intern_c("begin"), new func((void*)&begin_new_env, LFUNC_SPECIAL, -1)});
-	setf({intern_c("return"), new func((void*)&lreturn, 0, 1)});
-	setf({intern_c("car"), new func((void*)&car, 0, 1)});
-	setf({intern_c("cdr"), new func((void*)&cdr, 0, 1)});
-	setf({intern_c("cons"), new func((void*)&lcons, 0, 2)});
+	ldefine({intern_c("newline"), new func((void*)&newline, 0, -1)});
+	ldefine({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
+	ldefine({intern_c("setf"), ldefine({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
+	ldefine({intern_c("eval"), new func((void*)&eval, 0, -1)});
+	ldefine({intern_c("apply"), new func((void*)&apply, 0, -1)});
+	ldefine({intern_c("begin"), new func((void*)&begin_new_env, LFUNC_SPECIAL, -1)});
+	ldefine({intern_c("return"), new func((void*)&lreturn, 0, 1)});
+	ldefine({intern_c("car"), new func((void*)&car, 0, 1)});
+	ldefine({intern_c("cdr"), new func((void*)&cdr, 0, 1)});
+	ldefine({intern_c("cons"), new func((void*)&lcons, 0, 2)});
+	ldefine({intern_c("define"), new func((void*)&ldefine, LFUNC_SPECIAL, -1)});
 
 	return;
 }
