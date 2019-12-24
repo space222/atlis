@@ -290,6 +290,7 @@ lptr lread(const MultiArg& args)
 		c = (int) peek_char({port}).as_int();
 		if( c == ')' )
 		{  // empty list
+			printf("got here\n");
 			read_char({port});
 			return lptr();
 		}
@@ -320,7 +321,6 @@ lptr lread(const MultiArg& args)
 			consume_ws(port);
 			c =(int) peek_char({port}).as_int();
 		}
-		//printf("end of list\n");
 		read_char({port});
 		return fin;
 	}
@@ -344,6 +344,24 @@ lptr lread(const MultiArg& args)
 		}
 		lptr b = lread({port});
 		return new cons(intern_c("unquote"), b);
+	}
+
+	if( c == '\"' )
+	{
+		read_char({port});
+		c =(int) peek_char({port}).as_int();
+		if( c == '\"' || c == -1 )
+		{
+			return new lstr();
+		}
+		std::string str;
+		do {
+			str += c;
+			read_char({port});
+			c =(int) peek_char({port}).as_int();
+		} while( c != '\"' && c != -1 );
+		read_char({port});
+		return new lstr(str);
 	}
 
 	std::string atom;

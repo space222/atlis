@@ -1,12 +1,14 @@
 #include <vector>
 #include <string>
 #include <iostream>
+#include <stdlib.h>
 #include <unordered_map>
 #include <algorithm>
 #include "types.h"
 #include "funcs.h"
 
 lptr global_T;
+lptr QUOTE;
 lptr lisp_out_stream;
 lptr lisp_in_stream;
 
@@ -98,12 +100,19 @@ lptr eval(const MultiArg& args)
 		return i;
 	}
 
+	if( args[0] == QUOTE )
+	{
+		if( args.size() > 1 ) return args[1];
+		return lptr();
+	}
+
 	std::vector<lptr> applargs;
 
 	do {
 		applargs.push_back(i.as_cons()->a);
 		i = i.as_cons()->b;
 	} while( i.type() == LTYPE_CONS );
+
 	
 	fscope* temp = global_scope;
 	global_scope = env;
@@ -212,7 +221,7 @@ lptr ldefine(const MultiArg& args)
 	return val;
 }
 
-lptr setf(const std::vector<lptr>& args)
+lptr setf(const MultiArg& args)
 {
 	if( args.size() < 2 ) return lptr();
 	lptr sym = args[0];
@@ -262,7 +271,7 @@ lptr cdr(lptr v)
 	return v.as_cons()->b;
 }
 
-lptr lcons(const std::vector<lptr>& args)
+lptr lcons(const MultiArg& args)
 {
 	if( args.size() < 2 )
 	{
@@ -272,13 +281,26 @@ lptr lcons(const std::vector<lptr>& args)
 	return new cons(args[0], args[1]);
 }
 
+lptr lquote(lptr a)
+{
+	return a;
+}
+
+lptr lexit(lptr a)
+{
+	exit(a.as_int());
+	return a; // not really
+}
+
 void lisp_init()
 {
 	global_T = intern_c("T");
+	QUOTE = intern_c("QUOTE");
 
 	lisp_in_stream = new lstream(&std::cin);
 	lisp_out_stream = new lstream(&std::cout);
 
+	ldefine({intern_c("exit"), new func((void*)&lexit, 0, 1)});
 	ldefine({intern_c("newline"), new func((void*)&newline, 0, -1)});
 	ldefine({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
 	ldefine({intern_c("setf"), ldefine({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
@@ -290,6 +312,7 @@ void lisp_init()
 	ldefine({intern_c("cdr"), new func((void*)&cdr, 0, 1)});
 	ldefine({intern_c("cons"), new func((void*)&lcons, 0, 2)});
 	ldefine({intern_c("define"), new func((void*)&ldefine, LFUNC_SPECIAL, -1)});
+	ldefine({QUOTE, new func((void*)&lquote, LFUNC_SPECIAL, 1)});
 
 	return;
 }

@@ -136,6 +136,11 @@ public:
 		return;
 	}
 
+	bool operator==(lptr b)
+	{
+		return this->val == b.val;
+	}
+
 	lstream* stream() const { return (lstream*)(val&~7); }
 	func* as_func() const { return (func*)(val&~7); }
 	cons* as_cons() const { return (cons*)(val&~7); }
@@ -159,7 +164,7 @@ public:
 
 	bool nilp() const
 	{
-		return (val&7)==4 && (val&~7)==0;
+		return (val&7)==LTYPE_OBJ && (val&~7)==0;
 	}
 
 	u64 val;
@@ -201,10 +206,6 @@ struct fscope
 
 const int LFUNC_SPECIAL = 1;  // function is special form
 const int LFUNC_BYTECODE = 2; // func::ptr is bytecode not native
-
-using zero_arg_func = lptr(void);
-using one_arg_func = lptr(lptr);
-using multiarg_func = lptr(const std::vector<lptr>&);
 
 struct func
 {
@@ -307,6 +308,8 @@ public:
 	{
 	}
 
+	MultiArg(const MultiArg& A) : them(A.them) {}
+
 	size_t size() const
 	{
 		if( them.index() == 1 )
@@ -336,6 +339,9 @@ public:
 	std::variant<std::monostate, std::vector<lptr>, StaticArgs> them;
 };
 
+using zero_arg_func = lptr(void);
+using one_arg_func = lptr(lptr);
+using multiarg_func = lptr(const MultiArg&);
 
 
 
