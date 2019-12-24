@@ -257,7 +257,7 @@ lptr read_char(const MultiArg& args)
 void consume_ws(lptr port)
 {
 	int c =(int) peek_char({port}).as_int();
-	while( isspace(c) )
+	while( isspace(c) && c != -1 )
 	{
 		read_char({port});
 		c =(int) peek_char({port}).as_int();
@@ -281,7 +281,11 @@ lptr lread(const MultiArg& args)
 
 	if( ! (port.stream()->flags & LSTREAM_IN) ) return lptr();
 
+	consume_ws(port);
+
 	int c =(int) peek_char({port}).as_int();
+	if( c == -1 ) return lptr();
+
 	if( c == '(' )
 	{
 		//printf("about to list\n");
