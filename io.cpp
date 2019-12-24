@@ -7,7 +7,7 @@
 
 extern lptr lisp_out_stream;
 extern lptr lisp_in_stream;
-
+extern lptr QUOTE;
 
 lptr write_char(const MultiArg& args)
 {
@@ -85,6 +85,8 @@ lptr lwrite(const MultiArg& args)
 		lstream_write_string(ostr, "Nil");
 		return ostr;
 	}
+
+	//printf("arg type = %i\n", args[0].type());
 
 	switch( args[0].type() )
 	{
@@ -294,7 +296,6 @@ lptr lread(const MultiArg& args)
 		c = (int) peek_char({port}).as_int();
 		if( c == ')' )
 		{  // empty list
-			printf("got here\n");
 			read_char({port});
 			return lptr();
 		}
@@ -328,13 +329,14 @@ lptr lread(const MultiArg& args)
 		read_char({port});
 		return fin;
 	}
+
+	//printf("c == <%c>\n", (char)c);
 	
 	if( c == '\'' )
 	{
 		read_char({port});
 		lptr b = lread({port});
-		printf("quoted type = %i\n", b.type());
-		return new cons(intern_c("quote"), b);
+		return new cons(QUOTE, new cons(b, lptr()));
 	}
 
 	if( c == ',' )
