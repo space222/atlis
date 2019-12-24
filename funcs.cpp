@@ -44,7 +44,7 @@ lptr apply(const MultiArg& args)
 		}
 
 		// running a lisp function with no args
-		return begin_new_env(F->body);
+		return begin_new_env_c(F->body);
 	}
 
 	std::vector<lptr> applargs(args.size()-1);
@@ -75,7 +75,7 @@ lptr apply(const MultiArg& args)
 	//todo: set up arguments in the global_scope
 
 	// run begin on the body
-	lptr retval = begin(F->body);
+	lptr retval = begin_c(F->body);
 
 	// restore previous global_scope
 	global_scope = global_scope->parent;
@@ -128,7 +128,34 @@ lptr lreturn(lptr arg)
 	return arg;
 }
 
-lptr begin_new_env(lptr arg)
+lptr begin_new_env_c(lptr arg)
+{
+	fscope* env = new fscope(global_scope);
+	global_scope = env;
+
+	lptr retval = begin_c(arg);
+
+	global_scope = global_scope->parent;
+	delete env;
+	return retval;
+}
+
+lptr begin_c(lptr arg)
+{
+	if( arg.type() != LTYPE_CONS ) return lptr();
+
+	lptr res;
+	do {
+		cons* temp = arg.as_cons();
+		res = eval({temp->a});
+		if( temp->b.type() != LTYPE_CONS ) break;
+		arg = temp->b;
+	} while( !arg.nilp() && !global_scope->need_return );
+
+	return global_scope->need_return ? global_scope->retval : res;
+}
+
+lptr begin_new_env(const MultiArg& arg)
 {
 	fscope* env = new fscope(global_scope);
 	global_scope = env;
@@ -140,17 +167,15 @@ lptr begin_new_env(lptr arg)
 	return retval;
 }
 
-lptr begin(lptr arg)
+lptr begin(const MultiArg& args)
 {
-	if( arg.type() != LTYPE_CONS ) return lptr();
+	if( args.size() == 0 ) return lptr();
 
 	lptr res;
-	do {
-		cons* temp = arg.as_cons();
-		res = eval({temp->a});
-		if( temp->b.type() != LTYPE_CONS ) break;
-		arg = temp->b;
-	} while( !arg.nilp() && !global_scope->need_return );
+	for(int i = 0; i < args.size() && !global_scope->need_return; ++i)
+	{
+		res = eval({args[i]});
+	}
 
 	return global_scope->need_return ? global_scope->retval : res;
 }

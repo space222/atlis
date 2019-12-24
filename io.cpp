@@ -333,6 +333,7 @@ lptr lread(const MultiArg& args)
 	{
 		read_char({port});
 		lptr b = lread({port});
+		printf("quoted type = %i\n", b.type());
 		return new cons(intern_c("quote"), b);
 	}
 

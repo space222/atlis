@@ -6,8 +6,10 @@
 lptr apply(const MultiArg& args);
 lptr eval(const MultiArg& args);
 lptr evlis(lptr);
-lptr begin(lptr);
-lptr begin_new_env(lptr arg);
+lptr begin(const MultiArg&);
+lptr begin_new_env(const MultiArg&);
+lptr begin_c(lptr);
+lptr begin_new_env_c(lptr);
 lptr intern_c(const std::string&);
 lptr intern(lptr);
 lptr symbol_value(fscope*, lptr);
