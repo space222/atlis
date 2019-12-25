@@ -147,7 +147,7 @@ public:
 	symbol* sym() const { return (symbol*)(val&~7); }
 	fscope* env() const { return (fscope*)(val&~7); }
 	lstr* string() const { return (lstr*)(val&~7); }
-	u64 as_int() const { return val>>3; }
+	u64 as_int() const { return (u64) ( ((s64)val)>>3 ); }
 	char as_char() const { return (char)(val>>3); }
 	float as_float() const { u64 v = val>>3; return *(float*)&v; }
 

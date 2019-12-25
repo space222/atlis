@@ -40,7 +40,10 @@ lptr apply(const MultiArg& args)
 		// having no arguments makes things easier
 		if( F->ptr )
 		{
-			return ( (zero_arg_func*)(F->ptr) ) ();
+			if( F->num_args == 0 )
+				return ( (zero_arg_func*)(F->ptr) ) ();
+			else
+				return ( (multiarg_func*)(F->ptr) )({});
 		}
 
 		// running a lisp function with no args
@@ -317,6 +320,109 @@ lptr lexit(lptr a)
 	return a; // not really
 }
 
+float to_float_c(lptr a)
+{
+	switch( a.type() )
+	{
+	case LTYPE_INT: return (float)(a.as_int());
+	}
+
+	return 0.0f;
+}
+
+lptr plus(const MultiArg& arg)
+{
+	if( arg.size() == 0 ) return (u64)0;
+
+	if( arg.size() == 1 ) return arg[0];
+
+	int largest_type = LTYPE_INT;
+	for(int i = 0; i < arg.size(); ++i)
+	{
+		if( arg[i].type() > LTYPE_INT )
+		{
+			if( arg[i].type() >= LTYPE_OBJ ) return lptr();
+			largest_type = arg[i].type();
+		}
+	}
+
+	switch( largest_type )
+	{
+	case LTYPE_INT:
+		{
+			lptr retval = (u64)0;
+			for(int i = 0; i < arg.size(); ++i)
+			{
+				retval = retval.as_int() + arg[i].as_int();
+			}
+			return retval;
+		}
+	case LTYPE_FLOAT:
+		{
+			lptr retval(0.0f);
+			for(int i = 0; i < arg.size(); ++i)
+			{
+				if( arg[i].type() != LTYPE_FLOAT )
+					retval = retval.as_float() + to_float_c(arg[i]);
+				else
+					retval = retval.as_float() + arg[i].as_float();
+			}
+			return retval;
+		}
+	default:
+		return lptr();
+	}
+
+	return lptr();
+}
+
+lptr mult(const MultiArg& arg)
+{
+	if( arg.size() == 0 ) return (u64)1;
+
+	if( arg.size() == 1 ) return arg[0];
+
+	int largest_type = LTYPE_INT;
+	for(int i = 0; i < arg.size(); ++i)
+	{
+		if( arg[i].type() > LTYPE_INT )
+		{
+			if( arg[i].type() >= LTYPE_OBJ ) return lptr();
+			largest_type = arg[i].type();
+		}
+	}
+
+	switch( largest_type )
+	{
+	case LTYPE_INT:
+		{
+			s64 retval = 1;
+			for(int i = 0; i < arg.size(); ++i)
+			{
+				retval = retval * (s64)arg[i].as_int();
+			}
+			return (u64)retval;
+		}
+	case LTYPE_FLOAT:
+		{
+			float retval = 1.0f;
+			for(int i = 0; i < arg.size(); ++i)
+			{
+				if( arg[i].type() != LTYPE_FLOAT )
+					retval = retval * to_float_c(arg[i]);
+				else
+					retval = retval * arg[i].as_float();
+			}
+			return retval;
+		}
+	default:
+		return lptr();
+	}
+
+	return lptr();
+
+}
+
 void lisp_init()
 {
 	global_T = intern_c("T");
@@ -325,6 +431,8 @@ void lisp_init()
 	lisp_in_stream = new lstream(&std::cin);
 	lisp_out_stream = new lstream(&std::cout);
 
+	ldefine({intern_c("*"), new func((void*)&mult, 0, -1)});
+	ldefine({intern_c("+"), new func((void*)&plus, 0, -1)});
 	ldefine({intern_c("exit"), new func((void*)&lexit, 0, 1)});
 	ldefine({intern_c("newline"), new func((void*)&newline, 0, -1)});
 	ldefine({intern_c("display"), new func((void*)&ldisplay, 0, -1)});

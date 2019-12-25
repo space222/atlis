@@ -90,7 +90,7 @@ lptr lwrite(const MultiArg& args)
 
 	switch( args[0].type() )
 	{
-	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); return ostr;
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string((s64)args[0].as_int())); return ostr;
 	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); return ostr;
 	case LTYPE_STR: lstream_write_string(ostr, '"' + args[0].string()->txt + '"'); return ostr;
 	case LTYPE_SYM: lstream_write_string(ostr, args[0].sym()->name); break;
@@ -146,7 +146,7 @@ lptr ldisplay(const MultiArg& args)
 
 	switch( args[0].type() )
 	{
-	case LTYPE_INT: lstream_write_string(ostr, std::to_string(args[0].as_int())); break;
+	case LTYPE_INT: lstream_write_string(ostr, std::to_string((s64)args[0].as_int())); break;
 	case LTYPE_FLOAT: lstream_write_string(ostr, std::to_string(args[0].as_float())); break;
 	case LTYPE_STR: lstream_write_string(ostr, args[0].string()->txt); break;
 	case LTYPE_CONS: lwrite(args); break;
@@ -347,10 +347,10 @@ lptr lread(const MultiArg& args)
 		{
 			read_char({port});
 			lptr b = lread({port});
-			return new cons(intern_c("unquote-splice"), b);
+			return new cons(intern_c("unquote-splice"), new cons(b, lptr()));
 		}
 		lptr b = lread({port});
-		return new cons(intern_c("unquote"), b);
+		return new cons(intern_c("unquote"), new cons(b, lptr()));
 	}
 
 	if( c == '\"' )
@@ -363,7 +363,16 @@ lptr lread(const MultiArg& args)
 		}
 		std::string str;
 		do {
-			str += c;
+			if( c == '\\' )
+			{
+				read_char({port});
+				c =(int) peek_char({port}).as_int();
+				if( c == '\\' ) str += c;
+				else if( c == 'n' ) str += '\n';
+				else if( c == 'r' ) str += '\r';
+				else if( c == 't' ) str += '\t';
+				else str += c;
+			} else str += c;
 			read_char({port});
 			c =(int) peek_char({port}).as_int();
 		} while( c != '\"' && c != -1 );
@@ -382,7 +391,7 @@ lptr lread(const MultiArg& args)
 	try {
 		u64 res = std::stoll(atom, &pos, 0);
 		if( pos == atom.size() )
-		{
+		{		
 			return res;
 		}
 	} catch(...) {}
