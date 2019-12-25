@@ -89,10 +89,12 @@ lptr apply(const MultiArg& args)
 
 lptr eval(const MultiArg& args)
 {
-	if( args.size() == 0 ) return lptr();
+	if( args.size() == 0 || args[0].nilp() ) return lptr();
 	lptr i = args[0];
 	fscope* env = global_scope;
 	if( args.size() > 1 ) env = args[1].env();
+
+	if( i == global_T ) return global_T;
 
 	if( i.type() == LTYPE_SYM )
 	{
@@ -187,6 +189,7 @@ lptr intern_c(const std::string& name)
 {
 	std::string temp;
 	for_each(std::begin(name), std::end(name), [&](char c) { temp += toupper(c); });
+	if( temp == "NIL" ) return lptr();
 	
 	auto iter = symbols_by_name.find(temp);
 	if( iter != symbols_by_name.end() )
@@ -426,6 +429,8 @@ lptr mult(const MultiArg& arg)
 void lisp_init()
 {
 	global_T = intern_c("T");
+	first_fscope.symbols.push_back(std::make_pair(global_T.sym(), global_T));
+
 	QUOTE = intern_c("QUOTE");
 
 	lisp_in_stream = new lstream(&std::cin);
