@@ -327,6 +327,7 @@ float to_float_c(lptr a)
 {
 	switch( a.type() )
 	{
+	case LTYPE_FLOAT: return a.as_float();
 	case LTYPE_INT: return (float)(a.as_int());
 	}
 
@@ -369,6 +370,60 @@ lptr plus(const MultiArg& arg)
 					retval = retval.as_float() + to_float_c(arg[i]);
 				else
 					retval = retval.as_float() + arg[i].as_float();
+			}
+			return retval;
+		}
+	default:
+		return lptr();
+	}
+
+	return lptr();
+}
+
+lptr minus(const MultiArg& arg)
+{
+	if( arg.size() == 0 ) return (u64)0;
+
+	int largest_type = LTYPE_INT;
+	for(int i = 0; i < arg.size(); ++i)
+	{
+		if( arg[i].type() > LTYPE_INT )
+		{
+			if( arg[i].type() >= LTYPE_OBJ ) return lptr();
+			largest_type = arg[i].type();
+		}
+	}
+
+	if( arg.size() == 1 )
+	{
+		if( arg[0].type() == LTYPE_INT )
+			return -arg[0].as_int();
+		if( arg[0].type() == LTYPE_FLOAT )
+			return -arg[0].as_float();
+		else
+			return lptr();
+	}
+
+	switch( largest_type )
+	{
+	case LTYPE_INT:
+		{
+			u64 retval = arg[0].as_int();
+			for(int i = 1; i < arg.size(); ++i)
+			{
+				retval -= arg[i].as_int();
+			}
+			return retval;
+		}
+	case LTYPE_FLOAT:
+		{
+			float retval = to_float_c(arg[0]);
+			for(int i = 1; i < arg.size(); ++i)
+			{
+				if( arg[i].type() != LTYPE_FLOAT )
+					retval -= to_float_c(arg[i]);
+				else
+					retval -= arg[i].as_float();
 			}
 			return retval;
 		}
@@ -423,7 +478,23 @@ lptr mult(const MultiArg& arg)
 	}
 
 	return lptr();
+}
 
+lptr l_if(const MultiArg& args)
+{
+	if( args.size() < 1 ) return lptr();
+
+	lptr res = eval({args[0]});
+	if( args.size() == 1 ) return res;
+
+	if( res.nilp() )
+	{
+		if( args.size() > 2 )
+			return eval({args[2]});
+		return lptr();
+	}
+
+	return eval({args[1]});
 }
 
 void lisp_init()
@@ -436,8 +507,10 @@ void lisp_init()
 	lisp_in_stream = new lstream(&std::cin);
 	lisp_out_stream = new lstream(&std::cout);
 
+	ldefine({intern_c("if"), new func((void*)&l_if, LFUNC_SPECIAL, -1)});
 	ldefine({intern_c("*"), new func((void*)&mult, 0, -1)});
 	ldefine({intern_c("+"), new func((void*)&plus, 0, -1)});
+	ldefine({intern_c("-"), new func((void*)&minus,0, -1)});
 	ldefine({intern_c("exit"), new func((void*)&lexit, 0, 1)});
 	ldefine({intern_c("newline"), new func((void*)&newline, 0, -1)});
 	ldefine({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
