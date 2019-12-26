@@ -497,6 +497,22 @@ lptr l_if(const MultiArg& args)
 	return eval({args[1]});
 }
 
+lptr set_car(const MultiArg& args)
+{
+	if( args.size() != 2 ) return lptr();
+	if( args[0].type() != LTYPE_CONS ) return lptr();
+	args[0].as_cons()->a = args[1];
+	return args[1];
+}
+
+lptr set_cdr(const MultiArg& args)
+{
+	if( args.size() != 2 ) return lptr();
+	if( args[0].type() != LTYPE_CONS ) return lptr();
+	args[0].as_cons()->b = args[1];
+	return args[1];
+}
+
 void lisp_init()
 {
 	global_T = intern_c("T");
@@ -515,6 +531,8 @@ void lisp_init()
 	ldefine({intern_c("newline"), new func((void*)&newline, 0, -1)});
 	ldefine({intern_c("display"), new func((void*)&ldisplay, 0, -1)});
 	ldefine({intern_c("setf"), ldefine({intern_c("set!"), new func((void*)&setf, LFUNC_SPECIAL, 2)})});
+	ldefine({intern_c("set-car!"), new func((void*)&set_car, 0, 2)});
+	ldefine({intern_c("set-cdr!"), new func((void*)&set_cdr, 0, 2)});
 	ldefine({intern_c("eval"), new func((void*)&eval, 0, -1)});
 	ldefine({intern_c("apply"), new func((void*)&apply, 0, -1)});
 	ldefine({intern_c("begin"), new func((void*)&begin_new_env, LFUNC_SPECIAL, -1)});
