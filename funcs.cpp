@@ -480,6 +480,52 @@ lptr mult(const MultiArg& arg)
 	return lptr();
 }
 
+lptr l_div(const MultiArg& arg)
+{
+	if( arg.size() == 0 ) return (u64)1;
+
+	if( arg.size() == 1 ) return arg[0];
+
+	int largest_type = LTYPE_INT;
+	for(int i = 0; i < arg.size(); ++i)
+	{
+		if( arg[i].type() > LTYPE_INT )
+		{
+			if( arg[i].type() >= LTYPE_OBJ ) return lptr();
+			largest_type = arg[i].type();
+		}
+	}
+
+	switch( largest_type )
+	{
+	case LTYPE_INT:
+		{
+			s64 retval = (s64)arg[0].as_int();
+			for(int i = 1; i < arg.size(); ++i)
+			{
+				retval /= (s64)arg[i].as_int();
+			}
+			return (u64)retval;
+		}
+	case LTYPE_FLOAT:
+		{
+			float retval = to_float_c(arg[0]);
+			for(int i = 1; i < arg.size(); ++i)
+			{
+				if( arg[i].type() != LTYPE_FLOAT )
+					retval /= to_float_c(arg[i]);
+				else
+					retval /= arg[i].as_float();
+			}
+			return retval;
+		}
+	default:
+		return lptr();
+	}
+
+	return lptr();
+}
+
 lptr l_if(const MultiArg& args)
 {
 	if( args.size() < 1 ) return lptr();
@@ -513,6 +559,42 @@ lptr set_cdr(const MultiArg& args)
 	return args[1];
 }
 
+lptr nullp(lptr a)
+{
+	if( a.nilp() ) return global_T;
+	return lptr();
+}
+
+lptr pairp(lptr a)
+{
+	if( a.type() == LTYPE_CONS ) return global_T;
+	return lptr();
+}
+
+lptr numberp(lptr a)
+{
+	if( a.type() == LTYPE_FLOAT || a.type() == LTYPE_INT ) return global_T;
+	return lptr();
+}
+
+lptr integerp(lptr a)
+{
+	if( a.type() == LTYPE_INT ) return global_T;
+	return lptr();
+}
+
+lptr symbolp(lptr a)
+{
+	if( a.type() == LTYPE_SYM ) return global_T;
+	return lptr();
+}
+
+lptr stringp(lptr a)
+{
+	if( a.type() == LTYPE_STR ) return global_T;
+	return lptr();
+}
+
 void lisp_init()
 {
 	global_T = intern_c("T");
@@ -523,8 +605,15 @@ void lisp_init()
 	lisp_in_stream = new lstream(&std::cin);
 	lisp_out_stream = new lstream(&std::cout);
 
+	ldefine({intern_c("string?"), new func((void*)&stringp,0,1)});
+	ldefine({intern_c("symbol?"), new func((void*)&symbolp,0,1)});
+	ldefine({intern_c("integer?"), new func((void*)&integerp,0,1)});
+	ldefine({intern_c("number?"), new func((void*)&numberp, 0, 1)});
+	ldefine({intern_c("null?"), new func((void*)&nullp, 0, 1)});
+	ldefine({intern_c("pair?"), new func((void*)&pairp, 0, 1)});
 	ldefine({intern_c("if"), new func((void*)&l_if, LFUNC_SPECIAL, -1)});
 	ldefine({intern_c("*"), new func((void*)&mult, 0, -1)});
+	ldefine({intern_c("/"), new func((void*)&l_div, 0, -1)});
 	ldefine({intern_c("+"), new func((void*)&plus, 0, -1)});
 	ldefine({intern_c("-"), new func((void*)&minus,0, -1)});
 	ldefine({intern_c("exit"), new func((void*)&lexit, 0, 1)});
